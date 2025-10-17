@@ -6,7 +6,7 @@ import axios from "axios";
 import { Metadata } from "@/types/metadata";
 import MetadataCard from "@/components/MetadataCard";
 
-function HomeContent() {
+export default function Home() {
   const searchParams = useSearchParams();
   const [url, setUrl] = useState("");
   const [metadata, setMetadata] = useState<Metadata | null>(null);
