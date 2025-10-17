@@ -30,7 +30,7 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
       {/* Album Artwork */}
-      {/* <div className="relative w-full aspect-square bg-gradient-to-br from-purple-900/50 to-slate-900/50">
+      <div className="relative w-full aspect-square bg-gradient-to-br from-purple-900/50 to-slate-900/50">
         {metadata.artwork ? (
           <Image
             src={metadata.artwork}
@@ -44,7 +44,7 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
             <div className="text-white/30 text-6xl">🎵</div>
           </div>
         )}
-      </div> */}
+      </div>
 
       {/* Metadata Content */}
       <div className="p-6">
