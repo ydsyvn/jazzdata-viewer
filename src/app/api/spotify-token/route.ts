@@ -4,9 +4,6 @@ export async function GET() {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
-  console.log("SPOTIFY_CLIENT_ID:", process.env.SPOTIFY_CLIENT_ID);
-  console.log("SPOTIFY_CLIENT_SECRET:", !!process.env.SPOTIFY_CLIENT_SECRET);
-
   if (!clientId || !clientSecret) {
     return NextResponse.json(
       { error: "Spotify credentials not configured" },

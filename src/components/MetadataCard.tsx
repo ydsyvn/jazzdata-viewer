@@ -86,7 +86,7 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
                     <span>{artist.name}</span>
                     {artist.instrument && (
                       <span className="text-sm text-purple-300/80">
-                        ({artist.instrument})
+                        - {artist.instrument}
                       </span>
                     )}
                   </div>
