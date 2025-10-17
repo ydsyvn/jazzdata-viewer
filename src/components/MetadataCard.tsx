@@ -110,18 +110,6 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
           />
           <InfoRow label="Label" value={metadata.label || null} />
         </dl>
-
-        {/* Data Source Notice */}
-        <div className="mt-4 pt-4 border-t border-white/10">
-          <p className="text-xs text-purple-300/60">
-            {metadata.composers.length === 0 &&
-            metadata.producers.length === 0 ? (
-              <>ℹ️ Extended credits not available for this {metadata.type}</>
-            ) : (
-              <></>
-            )}
-          </p>
-        </div>
       </div>
     </div>
   );

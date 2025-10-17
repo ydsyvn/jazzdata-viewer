@@ -19,7 +19,6 @@ export default function Home() {
       setUrl(sharedUrl);
       handleFetch(sharedUrl);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Extracted fetch logic into a reusable function
