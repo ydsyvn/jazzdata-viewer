@@ -1,24 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { Metadata } from "@/types/metadata";
 import MetadataCard from "@/components/MetadataCard";
+import { useSearchParams } from "next/navigation";
 
 export default function Home() {
   const [url, setUrl] = useState("");
+  const searchParams = useSearchParams();
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!url.trim()) {
-      setError("Please enter a Spotify URL");
-      return;
+  useEffect(() => {
+    const sharedUrl = searchParams.get("url");
+    if (sharedUrl && !url) {
+      setUrl(sharedUrl);
+      handleFetch(sharedUrl);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
+  // Extracted fetch logic into a reusable function
+  const handleFetch = async (spotifyUrl: string) => {
     setLoading(true);
     setError(null);
     setMetadata(null);
@@ -31,7 +36,7 @@ export default function Home() {
       // Fetch metadata
       const metadataResponse = await axios.get("/api/metadata", {
         params: {
-          url: url.trim(),
+          url: spotifyUrl.trim(),
           token: access_token,
         },
       });
@@ -51,6 +56,17 @@ export default function Home() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!url.trim()) {
+      setError("Please enter a Spotify URL");
+      return;
+    }
+
+    await handleFetch(url);
+  };
+
   const handleClear = () => {
     setUrl("");
     setMetadata(null);
@@ -63,7 +79,7 @@ export default function Home() {
         {/* Header */}
         <div className="text-center mb-8 pt-8">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
-            🎷 Jazz Metadata Viewer
+            Jazz Metadata Viewer
           </h1>
           <p className="text-purple-200 text-sm md:text-base">
             Discover detailed credits for your favorite jazz tracks and albums
