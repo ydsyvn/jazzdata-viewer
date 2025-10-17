@@ -189,10 +189,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch from MusicBrainz if ISRC is available
+    // Fetch from MusicBrainz
+    let mbid: string | null = null;
+
+    // Try to get MBID using ISRC first
     if (metadata.isrc) {
       try {
-        // Step 1: Get MBID using ISRC
         const mbSearchResponse = await axios.get<MusicBrainzResponse>(
           `https://musicbrainz.org/ws/2/recording?query=isrc:${metadata.isrc}&fmt=json`,
           {
@@ -205,60 +207,112 @@ export async function GET(request: NextRequest) {
         const mbSearchData = mbSearchResponse.data;
 
         if (mbSearchData.recordings && mbSearchData.recordings.length > 0) {
-          const mbid = mbSearchData.recordings[0].id;
-
-          // Step 2: Get detailed recording info using MBID
-          const mbDetailResponse =
-            await axios.get<MusicBrainzDetailedRecording>(
-              `https://musicbrainz.org/ws/2/recording/${mbid}?inc=artist-rels+work-rels&fmt=json`,
-              {
-                headers: {
-                  "User-Agent": "JazzMetadataViewer/1.0.0 (Personal Use)",
-                },
-              }
-            );
-
-          const recording = mbDetailResponse.data;
-
-          // Process relations
-          if (recording.relations) {
-            const featuredArtists: FeaturedArtist[] = [];
-            const composers: string[] = [];
-            const producers: string[] = [];
-
-            for (const relation of recording.relations) {
-              const artistName = relation.artist?.name;
-
-              // Skip if no artist name or if it's the main artist
-              if (!artistName || artistName === metadata.mainArtist) {
-                continue;
-              }
-
-              if (relation.type === "instrument" || relation.type === "vocal") {
-                const instrument = relation.attributes?.[0];
-                featuredArtists.push({
-                  name: artistName,
-                  instrument: instrument || relation.type,
-                });
-              } else if (relation.type === "producer") {
-                producers.push(artistName);
-              } else if (
-                relation.type === "composer" ||
-                relation.type === "writer"
-              ) {
-                composers.push(artistName);
-              }
-            }
-
-            // Update metadata with MusicBrainz data
-            metadata.featuredArtists = featuredArtists;
-            metadata.producers = [...new Set(producers)]; // Remove duplicates
-            metadata.composers = [...new Set(composers)]; // Remove duplicates
-          }
+          mbid = mbSearchData.recordings[0].id;
         }
       } catch (mbError) {
         console.error(
-          "MusicBrainz API error:",
+          "MusicBrainz ISRC search error:",
+          mbError instanceof AxiosError ? mbError.message : mbError
+        );
+      }
+    }
+
+    // Fallback: Search by title and artist if ISRC search failed
+    if (!mbid && metadata.trackName && metadata.mainArtist) {
+      try {
+        const encodedTitle = encodeURIComponent(metadata.trackName);
+        const encodedArtist = encodeURIComponent(metadata.mainArtist);
+
+        const mbSearchResponse = await axios.get<MusicBrainzResponse>(
+          `https://musicbrainz.org/ws/2/recording?query=title:"${encodedTitle}" AND artist:"${encodedArtist}"&fmt=json`,
+          {
+            headers: {
+              "User-Agent": "JazzMetadataViewer/1.0.0 (Personal Use)",
+            },
+          }
+        );
+
+        const mbSearchData = mbSearchResponse.data;
+
+        if (mbSearchData.recordings && mbSearchData.recordings.length > 0) {
+          mbid = mbSearchData.recordings[0].id;
+        }
+      } catch (mbError) {
+        console.error(
+          "MusicBrainz title/artist search error:",
+          mbError instanceof AxiosError ? mbError.message : mbError
+        );
+      }
+    }
+
+    // If we have an MBID (from either search method), get detailed info
+    if (mbid) {
+      try {
+        // Step 2: Get detailed recording info using MBID
+        const mbDetailResponse = await axios.get<MusicBrainzDetailedRecording>(
+          `https://musicbrainz.org/ws/2/recording/${mbid}?inc=artist-rels+work-rels&fmt=json`,
+          {
+            headers: {
+              "User-Agent": "JazzMetadataViewer/1.0.0 (Personal Use)",
+            },
+          }
+        );
+
+        const recording = mbDetailResponse.data;
+
+        // Process relations
+        if (recording.relations) {
+          // Use Maps to consolidate artists with multiple instruments
+          const featuredArtistsMap = new Map<string, Set<string>>();
+          const composers: string[] = [];
+          const producers: string[] = [];
+
+          for (const relation of recording.relations) {
+            const artistName = relation.artist?.name;
+
+            // Skip if no artist name or if it's the main artist
+            if (!artistName || artistName === metadata.mainArtist) {
+              continue;
+            }
+
+            if (relation.type === "instrument" || relation.type === "vocal") {
+              const instrument = relation.attributes?.[0] || relation.type;
+
+              // Get or create the set of instruments for this artist
+              if (!featuredArtistsMap.has(artistName)) {
+                featuredArtistsMap.set(artistName, new Set());
+              }
+              featuredArtistsMap.get(artistName)!.add(instrument);
+            } else if (relation.type === "producer") {
+              if (!producers.includes(artistName)) {
+                producers.push(artistName);
+              }
+            } else if (
+              relation.type === "composer" ||
+              relation.type === "writer"
+            ) {
+              if (!composers.includes(artistName)) {
+                composers.push(artistName);
+              }
+            }
+          }
+
+          // Convert Map to FeaturedArtist array with consolidated instruments
+          const featuredArtists: FeaturedArtist[] = Array.from(
+            featuredArtistsMap.entries()
+          ).map(([name, instruments]) => ({
+            name,
+            instrument: Array.from(instruments).join(", "),
+          }));
+
+          // Update metadata with MusicBrainz data
+          metadata.featuredArtists = featuredArtists;
+          metadata.producers = producers;
+          metadata.composers = composers;
+        }
+      } catch (mbError) {
+        console.error(
+          "MusicBrainz detail fetch error:",
           mbError instanceof AxiosError ? mbError.message : mbError
         );
         // Continue with Spotify data only
