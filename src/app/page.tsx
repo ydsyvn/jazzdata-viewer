@@ -1,28 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { Metadata } from "@/types/metadata";
 import MetadataCard from "@/components/MetadataCard";
-import { useSearchParams } from "next/navigation";
 
-export default function Home() {
-  const [url, setUrl] = useState("");
+function HomeContent() {
   const searchParams = useSearchParams();
+  const [url, setUrl] = useState("");
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Handle shared URLs from PWA share target
   useEffect(() => {
     const sharedUrl = searchParams.get("url");
-    if (sharedUrl && !url) {
+    if (sharedUrl) {
       setUrl(sharedUrl);
-      handleFetch(sharedUrl);
+      // Auto-submit the form with the shared URL
+      fetchMetadata(sharedUrl);
     }
   }, [searchParams]);
 
-  // Extracted fetch logic into a reusable function
-  const handleFetch = async (spotifyUrl: string) => {
+  const fetchMetadata = async (spotifyUrl: string) => {
+    if (!spotifyUrl.trim()) {
+      setError("Please enter a Spotify URL");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setMetadata(null);
@@ -57,13 +63,7 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!url.trim()) {
-      setError("Please enter a Spotify URL");
-      return;
-    }
-
-    await handleFetch(url);
+    await fetchMetadata(url);
   };
 
   const handleClear = () => {
@@ -81,7 +81,8 @@ export default function Home() {
             Jazz Metadata Viewer
           </h1>
           <p className="text-purple-200 text-sm md:text-base">
-            Discover detailed credits for your favorite jazz tracks and albums
+            View track and album metadata, including artists, performers and
+            producers.
           </p>
         </div>
 
