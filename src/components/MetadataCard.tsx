@@ -27,6 +27,9 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
     );
   };
 
+  // Determine if we have MusicBrainz data
+  const hasMusicBrainzData = metadata.featuredArtists.length > 0;
+
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden animate-fadeIn">
       {/* Album Artwork */}
@@ -67,7 +70,36 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
         {/* Credits */}
         <dl className="space-y-3">
           <InfoRow label="Main Artist" value={metadata.mainArtist} />
-          <InfoRow label="Featured Artists" value={metadata.otherArtists} />
+
+          {/* Featured Artists with Instruments (MusicBrainz data) */}
+          {hasMusicBrainzData && metadata.featuredArtists.length > 0 && (
+            <div className="border-b border-white/10 pb-3">
+              <dt className="text-sm font-medium text-purple-300 mb-2">
+                Featured Artists
+              </dt>
+              <dd className="space-y-1">
+                {metadata.featuredArtists.map((artist, index) => (
+                  <div
+                    key={index}
+                    className="text-base text-white flex items-baseline gap-2"
+                  >
+                    <span>{artist.name}</span>
+                    {artist.instrument && (
+                      <span className="text-sm text-purple-300/80">
+                        ({artist.instrument})
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </dd>
+            </div>
+          )}
+
+          {/* Fallback to Spotify-only featured artists if no MusicBrainz data */}
+          {!hasMusicBrainzData && metadata.otherArtists.length > 0 && (
+            <InfoRow label="Featured Artists" value={metadata.otherArtists} />
+          )}
+
           <InfoRow
             label="Composers"
             value={metadata.composers.length > 0 ? metadata.composers : null}
@@ -79,14 +111,19 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
           <InfoRow label="Label" value={metadata.label || null} />
         </dl>
 
-        {/* Data Availability Notice */}
-        {metadata.composers.length === 0 && metadata.producers.length === 0 && (
-          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-yellow-200 text-xs">
-              ℹ️ Extended credits not available for this {metadata.type}
-            </p>
-          </div>
-        )}
+        {/* Data Source Notice */}
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <p className="text-xs text-purple-300/60">
+            {hasMusicBrainzData ? (
+              <>✨ Enhanced with MusicBrainz credits</>
+            ) : metadata.composers.length === 0 &&
+              metadata.producers.length === 0 ? (
+              <>ℹ️ Extended credits not available for this {metadata.type}</>
+            ) : (
+              <>📀 Data from Spotify</>
+            )}
+          </p>
+        </div>
       </div>
     </div>
   );
