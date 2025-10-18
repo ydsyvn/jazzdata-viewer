@@ -35,3 +35,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url), 303);
   }
 }
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const url = searchParams.get("url");
+  const text = searchParams.get("text");
+
+  let spotifyUrl = "";
+
+  if (url && url.includes("spotify.com")) {
+    spotifyUrl = url;
+  } else if (text && text.includes("spotify.com")) {
+    const urlMatch = text.match(
+      /(https?:\/\/open\.spotify\.com\/(?:track|album)\/[a-zA-Z0-9]+)/
+    );
+    if (urlMatch) {
+      spotifyUrl = urlMatch[1];
+    }
+  }
+
+  if (spotifyUrl) {
+    const redirectUrl = new URL("/", request.url);
+    redirectUrl.searchParams.set("url", spotifyUrl);
+    return NextResponse.redirect(redirectUrl, 303);
+  }
+
+  return NextResponse.redirect(new URL("/", request.url), 303);
+}

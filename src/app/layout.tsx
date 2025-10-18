@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description:
     "Discover detailed credits for your favorite jazz tracks and albums",
   manifest: "/manifest.json",
-  themeColor: "#581c87",
+  themeColor: "#121212",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -35,7 +35,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#581c87" />
+        <meta name="theme-color" content="#121212" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
@@ -45,7 +45,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
+        {/* <Suspense fallback={<div>Loading...</div>}>{children}</Suspense> */}
+        {children}
       </body>
     </html>
   );

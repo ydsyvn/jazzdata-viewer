@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { Metadata } from "@/types/metadata";
 import MetadataCard from "@/components/MetadataCard";
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const [url, setUrl] = useState("");
   const [metadata, setMetadata] = useState<Metadata | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const metadataCardRef = useRef<HTMLDivElement>(null);
 
   // Handle shared URLs from PWA share target
   useEffect(() => {
@@ -47,15 +48,20 @@ export default function Home() {
       });
 
       setMetadata(metadataResponse.data);
-    } catch (err) {
-      let errorMessage =
-        "Failed to fetch metadata. Please check the URL and try again.";
 
-      if (axios.isAxiosError(err) && err.response?.data?.error) {
-        errorMessage = err.response.data.error;
-      }
-
-      setError(errorMessage);
+      // Scroll to metadata card after a brief delay to ensure render
+      setTimeout(() => {
+        metadataCardRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 150);
+    } catch (err: any) {
+      console.error("Error:", err);
+      setError(
+        err.response?.data?.error ||
+          "Failed to fetch metadata. Please check the URL and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -82,7 +88,7 @@ export default function Home() {
           </h1>
           <p className="text-purple-200 text-sm md:text-base">
             View track and album metadata, including artists, performers and
-            producers.
+            producers.{" "}
           </p>
         </div>
 
@@ -140,7 +146,11 @@ export default function Home() {
         </div>
 
         {/* Metadata Display */}
-        {metadata && <MetadataCard metadata={metadata} />}
+        {metadata && (
+          <div ref={metadataCardRef}>
+            <MetadataCard metadata={metadata} />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-8 text-purple-300/60 text-xs">
@@ -148,5 +158,26 @@ export default function Home() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-8">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8 pt-8">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-2">
+                Jazz Metadata Viewer
+              </h1>
+              <p className="text-purple-200 text-sm md:text-base">Loading...</p>
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }
