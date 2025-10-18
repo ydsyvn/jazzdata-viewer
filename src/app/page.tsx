@@ -56,12 +56,15 @@ function HomeContent() {
           block: "start",
         });
       }, 150);
-    } catch (err: any) {
-      console.error("Error:", err);
-      setError(
-        err.response?.data?.error ||
-          "Failed to fetch metadata. Please check the URL and try again."
-      );
+    } catch (err) {
+      let errorMessage =
+        "Failed to fetch metadata. Please check the URL and try again.";
+
+      if (axios.isAxiosError(err) && err.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
