@@ -4,8 +4,14 @@ import { Metadata, FeaturedArtist } from "../../../types/metadata";
 
 // --- Spotify Interfaces ---
 
+interface SpotifyExternalUrls {
+  spotify: string;
+}
+
 interface SpotifyArtist {
   name: string;
+  id: string;
+  external_urls: SpotifyExternalUrls;
 }
 
 interface SpotifyImage {
@@ -16,6 +22,7 @@ interface SpotifyTrackAlbum {
   name: string;
   release_date: string;
   images: SpotifyImage[];
+  external_urls: SpotifyExternalUrls;
 }
 
 interface SpotifyTrack {
@@ -26,12 +33,14 @@ interface SpotifyTrack {
     isrc?: string;
   };
   href?: string;
+  external_urls: SpotifyExternalUrls;
 }
 
 interface SpotifyAlbum {
   name: string;
   release_date: string;
   images: SpotifyImage[];
+  external_urls: SpotifyExternalUrls;
   artists: SpotifyArtist[];
   label: string;
   tracks: {
@@ -146,6 +155,7 @@ export async function GET(request: NextRequest) {
       isrc: null,
     };
 
+    // Populate metadata from Spotify initially
     if (track) {
       metadata.artwork = track.album.images[0]?.url || null;
       metadata.albumName = track.album.name;
@@ -156,6 +166,17 @@ export async function GET(request: NextRequest) {
         .map((a: SpotifyArtist) => a.name);
       metadata.isrc = track.external_ids?.isrc ?? null;
       metadata.trackName = track.name;
+      
+      // Spotify URLs
+      metadata.mainArtistUrl = track.artists[0]?.external_urls?.spotify;
+      metadata.albumUrl = track.album.external_urls?.spotify;
+
+      // Populate featured artists with Spotify URLs
+      // This serves as the fallback if MusicBrainz fails
+      metadata.featuredArtists = track.artists.slice(1).map((a) => ({
+        name: a.name,
+        spotifyUrl: a.external_urls?.spotify,
+      }));
     } else if (album) {
       metadata.artwork = album.images[0]?.url || null;
       metadata.albumName = album.name;
@@ -165,6 +186,16 @@ export async function GET(request: NextRequest) {
         .slice(1)
         .map((a: SpotifyArtist) => a.name);
       metadata.label = album.label;
+      
+      // Spotify URLs
+      metadata.mainArtistUrl = album.artists[0]?.external_urls?.spotify;
+      metadata.albumUrl = album.external_urls?.spotify;
+
+      // Populate featured artists with Spotify URLs
+      metadata.featuredArtists = album.artists.slice(1).map((a) => ({
+        name: a.name,
+        spotifyUrl: a.external_urls?.spotify,
+      }));
 
       // For albums, fetch the first track to get its ISRC
       const firstTrackHref = album.tracks?.items[0]?.href;
@@ -270,9 +301,25 @@ export async function GET(request: NextRequest) {
           for (const relation of recording.relations) {
             const artistName = relation.artist?.name;
 
-            // Skip if no artist name or if it's the main artist
-            if (!artistName || artistName === metadata.mainArtist) {
+            // Skip if no artist name
+            if (!artistName) {
               continue;
+            }
+            
+            // Check if it's the main artist to get their instrument
+            if (artistName.toLowerCase() === metadata.mainArtist.toLowerCase()) {
+              if (relation.type === "instrument" || relation.type === "vocal") {
+                 const instrument = relation.attributes?.[0] || relation.type;
+                 // Set or append main artist instrument
+                 if (metadata.mainArtistInstrument) {
+                   if (!metadata.mainArtistInstrument.includes(instrument)) {
+                     metadata.mainArtistInstrument += `, ${instrument}`;
+                   }
+                 } else {
+                   metadata.mainArtistInstrument = instrument;
+                 }
+              }
+              continue; // Don't add main artist to featured list
             }
 
             if (relation.type === "instrument" || relation.type === "vocal") {
@@ -298,15 +345,61 @@ export async function GET(request: NextRequest) {
           }
 
           // Convert Map to FeaturedArtist array with consolidated instruments
-          const featuredArtists: FeaturedArtist[] = Array.from(
+          // Merge with existing Featured Artists (from Spotify) to keep URLs if names match
+          const mbFeaturedArtists = Array.from(
             featuredArtistsMap.entries()
-          ).map(([name, instruments]) => ({
-            name,
-            instrument: Array.from(instruments).join(", "),
-          }));
+          ).map(([name, instruments]) => {
+             // Helper to normalize names for comparison
+             const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+             const nName = normalize(name);
 
-          // Update metadata with MusicBrainz data
-          metadata.featuredArtists = featuredArtists;
+             // Search in ALL Spotify artists (including main) to find a match
+             const spotifyArtists = track ? track.artists : (album ? album.artists : []);
+             
+             const match = spotifyArtists.find(sa => {
+                const nSaName = normalize(sa.name);
+                return nName === nSaName || nName.includes(nSaName) || nSaName.includes(nName);
+             });
+
+             return {
+              name,
+              instrument: Array.from(instruments).join(", "),
+              spotifyUrl: match?.external_urls?.spotify
+             };
+          });
+
+          // Fallback: For artists without a Spotify URL from the track metadata, 
+          // perform a search against Spotify API
+          const missingUrlArtists = mbFeaturedArtists.filter(a => !a.spotifyUrl);
+          
+          if (missingUrlArtists.length > 0) {
+            console.log(`Searching Spotify for ${missingUrlArtists.length} missing artists...`);
+            await Promise.allSettled(missingUrlArtists.map(async (artist) => {
+              try {
+                const searchRes = await axios.get(
+                  `https://api.spotify.com/v1/search?q=${encodeURIComponent(artist.name)}&type=artist&limit=1`,
+                  {
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                    },
+                  }
+                );
+                
+                const items = searchRes.data?.artists?.items;
+                if (items && items.length > 0) {
+                  // Use the URL from the first search result
+                  artist.spotifyUrl = items[0].external_urls?.spotify;
+                }
+              } catch (err) {
+                console.error(`Failed to search Spotify for ${artist.name}`, err);
+              }
+            }));
+          }
+          
+          if (mbFeaturedArtists.length > 0) {
+            metadata.featuredArtists = mbFeaturedArtists;
+          }
+          
           metadata.producers = producers;
           metadata.composers = composers;
         }
