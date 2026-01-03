@@ -150,29 +150,29 @@ export default function MetadataCard({ metadata }: MetadataCardProps) {
                 {metadata.featuredArtists.map((artist, index) => (
                   <div
                     key={index}
-                    className="flex items-center space-x-3 text-gray-100 p-2 rounded-lg hover:bg-white/5 transition-colors"
+                    className="flex items-start space-x-3 text-gray-100 p-2 rounded-lg hover:bg-white/5 transition-colors"
                   >
-                    <div className="h-1.5 w-1.5 rounded-full bg-purple-500/70 shrink-0" />
-                    <div className="flex flex-col">
-                    {artist.spotifyUrl ? (
-                       <a
-                         href={artist.spotifyUrl}
-                         target="_blank"
-                         rel="noopener noreferrer"
-                         className="font-medium hover:text-purple-300 transition-colors flex items-center group"
-                       >
-                         {artist.name}
-                         <ExternalLinkIcon />
-                       </a>
-                    ) : (
-                       <span className="font-medium">{artist.name}</span>
-                    )}
+                    <div className="h-1.5 w-1.5 rounded-full bg-purple-500/70 shrink-0 mt-2" />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      {artist.spotifyUrl ? (
+                        <a
+                          href={artist.spotifyUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium hover:text-purple-300 transition-colors flex items-center group truncate"
+                        >
+                          <span className="truncate">{artist.name}</span>
+                          <ExternalLinkIcon />
+                        </a>
+                      ) : (
+                        <span className="font-medium truncate">{artist.name}</span>
+                      )}
+                      {artist.instrument && (
+                        <span className="text-sm text-gray-400 italic truncate">
+                          {artist.instrument}
+                        </span>
+                      )}
                     </div>
-                    {artist.instrument && (
-                      <span className="text-sm text-gray-400 italic">
-                        - {artist.instrument}
-                      </span>
-                    )}
                   </div>
                 ))}
               </dd>

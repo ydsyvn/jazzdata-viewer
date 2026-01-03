@@ -132,7 +132,7 @@ function HomeContent() {
                     </svg>
                     Loading...
                   </span>
-                ) : "Reveal Credits"}
+                ) : "Get Metadata"}
               </button>
 
               {(metadata || error) && (
